@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>EduBuddy AI</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#11152A; --panel:#1A2040; --line:#2A3160;
+    --chalk:#EFEDE4; --muted:#9199C4; --accent:#F5C242; --accent2:#4FD1C5;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; min-height:100vh; background:var(--ink); color:var(--chalk);
+    font-family:'Space Grotesk', system-ui, sans-serif;
+  }
+  #setup, #chatwrap{ max-width:600px; margin:0 auto; padding:28px 20px 20px; }
+  h1{font-size:1.5rem; font-weight:700; margin:0 0 4px;}
+  .tag{color:var(--muted); font-size:0.92rem; margin:0 0 24px;}
+  .field{margin-bottom:16px;}
+  label{display:block; font-size:0.85rem; color:var(--muted); margin-bottom:6px;}
+  select{
+    width:100%; padding:12px 14px; background:var(--panel); color:var(--chalk);
+    border:1px solid var(--line); border-radius:10px; font-family:inherit; font-size:1rem;
+  }
+  button.primary{
+    width:100%; padding:13px; margin-top:8px; background:var(--accent); color:#11152A;
+    border:none; border-radius:10px; font-family:inherit; font-weight:700; font-size:1rem;
+    cursor:pointer;
+  }
+  #chatwrap{display:none; flex-direction:column; min-height:100vh; padding-bottom:12px;}
+  .chathead{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:14px;}
+  .chathead .who{font-size:0.85rem; color:var(--muted);}
+  #log{ flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:12px; padding:4px 2px 12px; min-height:50vh; }
+  .msg{max-width:85%; padding:11px 14px; border-radius:14px; line-height:1.45; font-size:0.98rem;}
+  .msg.bot{background:var(--panel); border:1px solid var(--line); align-self:flex-start; border-bottom-left-radius:4px;}
+  .msg.user{background:var(--accent2); color:#0A1F1D; align-self:flex-end; border-bottom-right-radius:4px;}
+  .msg.bot b{color:var(--accent);}
+  #inputbar{display:flex; gap:8px; padding-top:8px;}
+  #inputbar textarea{
+    flex:1; resize:none; padding:12px 14px; background:var(--panel); color:var(--chalk);
+    border:1px solid var(--line); border-radius:12px; font-family:inherit; font-size:0.98rem; max-height:100px;
+  }
+  #inputbar button{
+    padding:0 18px; background:var(--accent); color:#11152A; border:none;
+    border-radius:12px; font-weight:700; font-family:inherit; cursor:pointer;
+  }
+  #inputbar button:disabled{opacity:0.5;}
+</style>
+</head>
+<body>
+
+<div id="setup">
+  <h1>EduBuddy AI</h1>
+  <p class="tag">Your friendly tutor for Class 7–10 — Math, Science, Social Studies. Let's crush it together.</p>
+  <div class="field">
+    <label for="grade">Your class</label>
+    <select id="grade">
+      <option>Class 7</option><option>Class 8</option><option selected>Class 9</option><option>Class 10</option>
+    </select>
+  </div>
+  <div class="field">
+    <label for="board">Your board</label>
+    <select id="board">
+      <option>CBSE</option><option>ICSE</option><option>State Board</option><option>IB / IGCSE</option><option>Other</option>
+    </select>
+  </div>
+  <button class="primary" id="start">Start studying</button>
+</div>
+
+<div id="chatwrap">
+  <div class="chathead">
+    <h1 style="font-size:1.1rem;">EduBuddy AI</h1>
+    <span class="who" id="whoLine"></span>
+  </div>
+  <div id="log"></div>
+  <div id="inputbar">
+    <textarea id="box" rows="1" placeholder="Ask me anything about your syllabus..."></textarea>
+    <button id="send">Send</button>
+  </div>
+</div>
+
+<script>
+let grade, board, history = [];
+
+function sysPrompt(){
+  return `You are "EduBuddy AI," an elite, highly empathetic personal tutor for school students in India and worldwide, Classes 7-10.
+STUDENT: ${grade}, ${board} board.
+
+RULES:
+- Match conceptual depth, terms and problem-solving methods to the ${board} syllabus for ${grade} (e.g. NCERT for CBSE, CISCE for ICSE). Never teach concepts above this level unless explicitly asked.
+- Tone: enthusiastic, supportive, patient, peer-like. Simple, clear language for non-native English speakers.
+- Use relatable real-world analogies for abstract concepts (e.g. resistance = traffic on a road; cell organelles = a factory).
+- For numerical problems: list Givens, then Formula, then solve one small step at a time. Short, punchy sentences.
+- CRITICAL SOCRATIC RULE: if the student asks a direct homework question, do NOT give the final answer immediately. Praise their curiosity, state the core principle, give the first step, then ask a short guiding question (or offer 2-3 MCQ options) to lead them to it themselves.
+- Format with Markdown: **bold** key terms/figures, bullet points, and clean equations for math.
+- If asked something off-topic, political, toxic or adult, gently redirect: "I'm built to help you ace your school exams! Let's get back to your science/math goals. What topic are we crushing next?"
+- Never hallucinate facts; if unsure of an exact curriculum nuance, rely on standard pedagogy for this age group.`;
+}
+
+function addMsg(role, text){
+  const div = document.createElement('div');
+  div.className = 'msg ' + (role === 'user' ? 'user' : 'bot');
+  div.innerHTML = text.replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/\n/g,'<br>');
+  document.getElementById('log').appendChild(div);
+  div.scrollIntoView({behavior:'smooth', block:'end'});
+  return div;
+}
+
+document.getElementById('start').onclick = () => {
+  grade = document.getElementById('grade').value;
+  board = document.getElementById('board').value;
+  document.getElementById('setup').style.display = 'none';
+  document.getElementById('chatwrap').style.display = 'flex';
+  document.getElementById('whoLine').textContent = grade + ' · ' + board;
+  addMsg('bot', `Hey! I'm **EduBuddy**, ready to help you crush ${grade} ${board}. What topic are we tackling today?`);
+};
+
+async function send(){
+  const box = document.getElementById('box');
+  const text = box.value.trim();
+  if(!text) return;
+  box.value = '';
+  addMsg('user', text);
+  history.push({role:'user', content:text});
+  document.getElementById('send').disabled = true;
+
+  const botDiv = addMsg('bot', 'Thinking...');
+  try{
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ systemPrompt: sysPrompt(), history })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      botDiv.innerHTML = data.error || "Something went wrong.";
+    } else {
+      botDiv.innerHTML = data.text.replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/\n/g,'<br>');
+      history.push({role:'assistant', content: data.text});
+    }
+  } catch(e){
+    botDiv.innerHTML = "Couldn't reach the server. Check your connection and try again.";
+  }
+  document.getElementById('send').disabled = false;
+}
+
+document.getElementById('send').onclick = send;
+document.getElementById('box').addEventListener('keydown', (e) => {
+  if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); send(); }
+});
+</script>
+</body>
+</html>
